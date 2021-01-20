@@ -1,0 +1,261 @@
+appearance()
+	-webkit-appearance arguments
+	appearance arguments
+user-drag()
+	-webkit-user-drag arguments
+	user-drag arguments
+body
+	margin 0
+	font 15px "Roboto",sans-serif
+	user-select none
+*, *:before, *:after
+	box-sizing border-box
+:focus
+	outline 0
+.row
+	display flex
+	flex-direction row
+.column
+	display flex
+	flex-direction column
+.col
+	flex-grow 1
+.col-0
+	flex-shrink 0
+for i in range(1, 12)
+	val = floor(i / 12 * 100%, 2)
+	.row > .col-{i}
+		width val
+	.column > .col-{i}
+		height val
+	val = floor(100% / i, 2)
+	.row-{i}
+		display grid
+		grid-template-columns repeat(i,1fr)
+		> .col-{i}
+			grid-column span (i)
+.full
+	position absolute
+	inset 0
+.wrap
+	flex-wrap wrap
+.nowrap
+	flex-wrap nowrap
+for dir in row column
+	.{dir}
+		prop = dir is row ? "justify-content" : "align-items"
+		&.start
+			{prop} flex-start
+		&.center
+			{prop} center
+		&.end
+			{prop} flex-end
+		prop = dir is row ? "align-items" : "justify-content"
+		&.top
+			{prop} flex-start
+		&.middle
+			{prop} center
+		&.bottom
+			{prop} flex-end
+.between
+	justify-content space-between
+.around
+	justify-content space-around
+.evenly
+	justify-content space-evenly
+.stretch
+	align-items stretch
+props = {p: padding, m: margin}
+sides = {t: top, r: right, b: bottom, l: left}
+sizes = 32px 16px 8px 4px 2px 0
+for p, prop in props
+	for size, i in sizes
+		i = 5 - i
+		.{p}-{i}
+			{prop} size
+		.-{p}-{i}
+			{prop} -(size)
+		.{p}x-{i}
+			{prop}-left size
+			{prop}-right size
+		.{p}y-{i}
+			{prop}-top size
+			{prop}-bottom size
+		.-{p}x-{i}
+			{prop}-left -(size)
+			{prop}-right -(size)
+		.-{p}y-{i}
+			{prop}-top -(size)
+			{prop}-bottom -(size)
+		for s, side in sides
+			.{p}{s}-{i}
+				{prop}-{side} size
+			if p is m and i
+				.-{p}{s}-{i}
+					{prop}-{side} -(size)
+for size, i in sizes
+	i = 5 - i
+	.gap-{i}
+		grid-gap size
+	.gap-x-{i}
+		grid-column-gap size
+	.gap-y-{i}
+		grid-row-gap size
+for pos in absolute relative fixed
+	.{pos}
+		position pos
+for size in 100 75 50 25 0
+	.w-{size}
+		width (size)%
+	.h-{size}
+		height (size)%
+for i in 0..5
+	.z-{i}
+		z-index i
+	if i
+		.-z-{i}
+			z-index -(i)
+for dis in block inline-block inline flex inline-flex
+	.{dis}
+		display dis
+.hidden, [hidden]
+	display none
+for align in left center right justify
+	.text-{align}
+		text-align align
+.text-nowrap
+	white-space nowrap
+	word-break break-word
+.text-truncate
+	overflow hidden
+	text-overflow ellipsis
+	white-space nowrap
+	word-break break-word
+.text-small, small
+	font-size 13px
+.scroll
+	overflow auto
+.noscroll
+	overflow hidden
+.event
+	pointer-events auto
+.noevent
+	pointer-events none
+.events
+	pointer-events none
+	> *
+		pointer-events auto
+.box
+	border solid 1px #bbb
+	border-radius 4px
+	box-shadow inset
+.button
+	height 28px
+	padding 0 8px
+	border solid 1px #bbb
+	border-radius 4px
+	font inherit
+	background #eee
+	color #000
+	box-shadow 0 0 0 1px inset #fff
+	&:active
+		background #ccc
+		box-shadow none
+.input
+	height 28px
+	padding 0 8px
+	border solid 1px #bbb
+	border-radius 4px
+	font inherit
+	background #eee
+	color #000
+	box-shadow 0 0 0 1px inset #fff
+.rangeInput
+	appearance none
+	height 28px
+	margin 0
+	&::-webkit-slider-runnable-track
+		appearance none
+		height 12px
+		border solid 1px #ccc
+		border-radius 4px
+		background #ddd
+	&::-webkit-slider-thumb
+		appearance none
+		width 16px
+		height 24px
+		margin-top -7px
+		border solid 1px #bbb
+		border-radius 4px
+		background #eee
+		box-shadow 0 0 0 1px inset #fff
+.checkInput
+	appearance none
+	position relative
+	width 20px
+	height 20px
+	margin 4px 0
+	border solid 1px #bbb
+	border-radius 4px
+	background #eee
+	box-shadow 0 0 0 1px inset #fff
+	&:checked
+		&:after
+			content "\f00c"
+			position absolute
+			inset 1px 0 0 0
+			display flex
+			justify-content center
+			align-items center
+			font 900 15px "Font Awesome 5 Pro"
+.ColorInput
+	position relative
+	height 28px
+	border solid 1px #bbb
+	border-radius 4px
+	display inline-flex
+	background #eee
+	box-shadow 0 0 0 1px inset #fff
+.ColorInput-text
+	width 75%
+	height 100%
+	border 0
+	padding 0 8px
+	background #0000
+.ColorInput-color
+	width 25%
+	margin 2px
+	border solid 1px #8883
+	border-radius 3px
+.ColorInput-input
+	position absolute
+	left -1px
+	top 0
+	width calc(100% + 2px)
+	height 100%
+	padding 0
+	border 0
+	visibility hidden
+	&::-webkit-color-swatch-wrapper
+		padding 0
+	&::-webkit-color-swatch
+		border 0
+.main
+	position absolute
+	inset 0
+	display flex
+.side
+	padding 8px
+	width 300px
+.view
+	position relative
+	flex-grow 1
+	overflow auto
+#editEl
+#gridEl
+	position absolute
+	left 0
+	top 0
+	image-rendering pixelated
+#gridEl
+	pointer-events none
