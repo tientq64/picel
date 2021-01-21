@@ -216,7 +216,7 @@ App = m.comp do
 		@tmpW = @w
 		@tmpH = @h
 		@z = 12
-		@color = \#e91
+		@color = \#333
 		@tmpColor = @color
 		@gridColor = \#ccc
 		@tmpGridColor = @gridColor
@@ -242,6 +242,9 @@ App = m.comp do
 		@isKeyDown = no
 		@x = void
 		@y = void
+		@cursor = void
+		@hists = []
+		@histsIndex = 0
 
 	oncreate: !->
 		@resize!
@@ -252,10 +255,10 @@ App = m.comp do
 	open: !->
 		try
 			[@file] = await showOpenFilePicker do
+				excludeAcceptAllOption: yes
 				types:
-					excludeAcceptAllOption: yes
 					accept:
-						"image/*": [\.png]
+						"image/png": [\.png]
 					...
 			file = await @file.getFile!
 			reader = new FileReader
@@ -287,8 +290,42 @@ App = m.comp do
 					@drawGrid!
 			reader.readAsDataURL file
 
+	save: !->
+		if @file
+			data = editEl.toBlob (blob) !~>
+				writer = await @file.createWritable!
+				await writer.write blob
+				await writer.close!
+		else
+			@saveAs!
+
+	saveAs: !->
+		try
+			@file = await showSaveFilePicker do
+				excludeAcceptAllOption: yes
+				types:
+					accept:
+						"image/png": [\.png]
+					...
+			@save!
+
 	inBound: (x, y) ->
 		0 <= x < @w and 0 <= y < @h
+
+	mergeSelPts: !->
+		for pt in @selPts
+			if @inBound pt.0, pt.1
+				index = @pts.findIndex ~> it.0 is pt.0 and it.1 is pt.1 and it isnt pt
+				if index >= 0
+					pt.2 = Utils.mixColor @pts[index]2, pt.2
+					@pts.splice index, 1
+			else
+				@pts.splice @pts.indexOf(pt), 1
+
+	pushHist: (name, actions) !->
+		@hists.push {name, actions}
+		@histsIndex = @hists.length - 1
+		m.redraw!
 
 	onpointerdownEdit: (event) !->
 		editEl.setPointerCapture event.pointerId
@@ -307,60 +344,33 @@ App = m.comp do
 				if isDown
 					@x = mx
 					@y = my
-				curPtInBound = @inBound mx, my
-				if @selPts.length
-					inSelPts = @selPts.some ~> it.0 is mx and it.1 is my
+				inBound = @inBound mx, my
 				dx = mx - @x
 				dy = my - @y
-				curPt = @pts.find ~> it.0 is mx and it.1 is my
 				if @shift
-					if @ctrl
-						if curPt
-							# for pt in @selPts
-							if @mouse is 2
-								@selPts = []
-							grid = []
-							for pt in @pts
-								grid[][pt.1][pt.0] = pt
-							finded = []
-							findNear = (pt) !~>
-								unless finded.includes pt
-									finded.push pt
-									index = @selPts.indexOf pt
-									if index is -1
-										if @mouse in [1 2]
-											@selPts.push pt
-									else
-										if @mouse is 3
-											@selPts.splice index, 1
-									for y from pt.1 - 1 to pt.1 + 1
-										for x from pt.0 - 1 to pt.0 + 1
-											unless x is pt.0 and y is pt.1
-												if nearPt = grid[y]?[x]
-													if nearPt.2 is pt.2
-														findNear nearPt
-							findNear curPt
-							grid = null
-							@drawGrid!
+					if @selPts.length
+						@mergeSelPts!
+					if isDown
+						@sel = x0: mx, y0: my
+						if @mouse is 2
+							@selPts = []
+					@sel.x = mx
+					@sel.y = my
+					@sel.x1 = Math.min @sel.x0, mx
+					@sel.y1 = Math.min @sel.y0, my
+					@sel.x2 = Math.max @sel.x0, mx
+					@sel.y2 = Math.max @sel.y0, my
+					if @mouse in [1 2]
+						@sel.pts = @pts.filter ~>
+							@sel.x1 <= it.0 <= @sel.x2 and @sel.y1 <= it.1 <= @sel.y2
 					else
-						if isDown
-							@sel = x0: mx, y0: my
-							if @mouse is 2
-								@selPts = []
-						@sel.x = mx
-						@sel.y = my
-						@sel.x1 = Math.min @sel.x0, mx
-						@sel.y1 = Math.min @sel.y0, my
-						@sel.x2 = Math.max @sel.x0, mx
-						@sel.y2 = Math.max @sel.y0, my
-						if @mouse in [1 2]
-							@sel.pts = @pts.filter ~>
-								@sel.x1 <= it.0 <= @sel.x2 and @sel.y1 <= it.1 <= @sel.y2
-						else
-							@sel.pts = null
-						@drawGrid!
+						@sel.pts = null
+					@drawGrid!
 				else
 					if @selPts.length
+						if @mouse is 2
+							if isDown
+								@cursor = \copy
 						if @mouse in [1 2]
 							for pt in @selPts
 								if @mouse is 2
@@ -377,36 +387,31 @@ App = m.comp do
 							@drawEdit!
 							@drawGrid!
 						else
+							inSelPts = @selPts.some ~> it.0 is mx and it.1 is my
 							if inSelPts
 								for pt in @selPts
 									@pts.splice @pts.indexOf(pt), 1
 								@drawEdit!
 							else
-								for pt in @selPts
-									if @inBound pt.0, pt.1
-										findPt = @pts.find ~> it.0 is pt.0 and it.1 is pt.1 and it isnt pt
-										if findPt
-											findPt.2 = Utils.mixColor findPt.2, pt.2
-											@pts.splice @pts.indexOf(pt), 1
-									else
-										@pts.splice @pts.indexOf(pt), 1
+								@mergeSelPts!
 							@selPts = []
 							@drawGrid!
 					else
-						if curPtInBound
+						if inBound
+							pt = @pts.find ~> it.0 is mx and it.1 is my
 							if @mouse is 1
-								if curPt
-									curPt.2 = Utils.mixColor curPt.2, @color
+								if pt
+									pt.2 = Utils.mixColor pt.2, @color
 								else
 									newPt = [mx, my, @color]
 									@pts.push newPt
 								@drawEdit!
 							else if @mouse is 2
-								if curPt
-									@color = @tmpColor = curPt.2
+								if pt
+									@color = @tmpColor = pt.2
 							else
-								if curPt
-									@pts.splice @pts.indexOf(curPt), 1
+								if pt
+									@pts.splice @pts.indexOf(pt), 1
 									@drawEdit!
 			@x = mx
 			@y = my
@@ -418,11 +423,15 @@ App = m.comp do
 			@shift = void
 			@alt = void
 			@code = void
+			@cursor = void
 		if @sel
 			if @sel.pts
 				for pt in @sel.pts
 					unless @selPts.includes pt
+						index = @pts.indexOf pt
 						@selPts.push pt
+						@pts.splice index, 1
+						@pts.push pt
 			else
 				@selPts .= filter ~>
 					it.0 < @sel.x1 or it.0 > @sel.x2 or it.1 < @sel.y1 or it.1 > @sel.y2
@@ -438,19 +447,24 @@ App = m.comp do
 					@alt = event.altKey
 					{@code} = event
 					@isKeyDown = yes
+					if @shift
+						@cursor = \crosshair
+						m.redraw!
 					switch @code
+					| \KeyS
+						if @ctrl
+							event.preventDefault!
+							if @shift
+								@saveAs!
+							else
+								@save!
 					| \KeyO
-						@open!
+						if @ctrl
+							event.preventDefault!
+							@open!
 					| \Escape
 						if @selPts.length
-							for pt in @selPts
-								if @inBound pt.0, pt.1
-									findPt = @pts.find ~> it.0 is pt.0 and it.1 is pt.1 and it isnt pt
-									if findPt
-										findPt.2 = Utils.mixColor findPt.2, pt.2
-										@pts.splice @pts.indexOf(pt), 1
-								else
-									@pts.splice @pts.indexOf(pt), 1
+							@mergeSelPts!
 							@selPts = []
 							@drawGrid!
 
@@ -460,6 +474,8 @@ App = m.comp do
 			@shift = void
 			@alt = void
 			@code = void
+			@cursor = void
+			m.redraw!
 		@isKeyDown = no
 
 	onchangeSize: (prop, event) !->
@@ -477,6 +493,8 @@ App = m.comp do
 				@drawGrid!
 
 	resize: !->
+		@tmpW = @w
+		@tmpH = @h
 		@wz = @w * @z
 		@hz = @h * @z
 		@wz1 = @wz + 1
@@ -516,12 +534,14 @@ App = m.comp do
 				pts .= filter ~>
 					it.0 < @sel.x1 or it.0 > @sel.x2 or it.1 < @sel.y1 or it.1 > @sel.y2
 		if pts.length
+			@grid.save!
 			@grid.fillStyle = \#07d
 			for pt in pts
 				@grid.fillRect pt.0 * @z - 2, pt.1 * @z - 2, @z + 4, @z + 4
+			@grid.globalCompositeOperation = \destination-out
 			for pt in pts
-				@grid.fillStyle = pt.2
 				@grid.fillRect pt.0 * @z, pt.1 * @z, @z, @z
+			@grid.restore!
 		if @sel
 			@grid.strokeStyle = \#07d
 			@grid.lineWidth = 2
@@ -540,7 +560,9 @@ App = m.comp do
 
 	view: ->
 		m \.main,
-			m \.side.column,
+			style:
+				cursor: @cursor
+			m \.toolbar.column,
 				m \.col,
 					m \.row,
 						m \.col-3 "x: #{@x ? \-}"
