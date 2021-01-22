@@ -1,48 +1,4 @@
 m <<<
-	cssUnitless:
-		animationIterationCount: yes
-		borderImageOutset: yes
-		borderImageSlice: yes
-		borderImageWidth: yes
-		boxFlex: yes
-		boxFlexGroup: yes
-		boxOrdinalGroup: yes
-		columnCount: yes
-		columns: yes
-		flex: yes
-		flexGrow: yes
-		flexPositive: yes
-		flexShrink: yes
-		flexNegative: yes
-		flexOrder: yes
-		gridArea: yes
-		gridRow: yes
-		gridRowEnd: yes
-		gridRowSpan: yes
-		gridRowStart: yes
-		gridColumn: yes
-		gridColumnEnd: yes
-		gridColumnSpan: yes
-		gridColumnStart: yes
-		fontWeight: yes
-		lineClamp: yes
-		lineHeight: yes
-		opacity: yes
-		order: yes
-		orphans: yes
-		tabSize: yes
-		widows: yes
-		zIndex: yes
-		zoom: yes
-		fillOpacity: yes
-		floodOpacity: yes
-		stopOpacity: yes
-		strokeDasharray: yes
-		strokeDashoffset: yes
-		strokeMiterlimit: yes
-		strokeOpacity: yes
-		strokeWidth: yes
-
 	class: (...clses) ->
 		res = []
 		for cls in clses
@@ -63,7 +19,6 @@ m <<<
 			if styl instanceof Object
 				for k, val of styl
 					res[k] = val
-					res[k] += \px if not @cssUnitless[k] and +val
 		res
 
 	bind: (comp) ->
@@ -71,49 +26,6 @@ m <<<
 			if typeof v is \function
 				comp[k] = v.bind comp
 		comp
-
-	comp: (opts,, statics) ->
-		comp = ->
-			old = null
-			vdom = {}
-			vdom <<< opts
-			vdom <<<
-				$$oninit: opts.oninit or ->
-				$$oncreate: opts.oncreate or ->
-				$$onbeforeupdate: opts.onbeforeupdate or ->
-				$$onupdate: opts.onupdate or ->
-				$$onbeforeremove: opts.onbeforeremove or ->
-				$$onremove: opts.onremove or ->
-				oninit: !->
-					@{attrs or {}, children or []} = it
-					@dom = null
-					old :=
-						attrs: {...@attrs}
-						children: [...@children]
-						dom: null
-					@$$oninit!
-					@$$onbeforeupdate old, yes
-				oncreate: !->
-					@dom = it.dom
-					@$$oncreate!
-					@$$onupdate old, yes
-				onbeforeupdate: ->
-					@{attrs or {}, children or []} = it
-					@$$onbeforeupdate old
-				onupdate: !->
-					@dom = it.dom
-					@$$onupdate old
-					old :=
-						attrs: {...@attrs}
-						children: [...@children]
-						dom: @dom
-				onbeforeremove: ->
-					@$$onbeforeremove!
-				onremove: !->
-					@$$onremove!
-			m.bind vdom
-		comp <<< statics
-		m.bind comp
 
 Utils =
 	hexToRgba: (color) ->
@@ -176,46 +88,40 @@ Utils =
 		mix = @rgbaToHex mix
 		@shortenColor mix
 
-ColorInput = m.comp do
-	onbeforeupdate: !->
-		@color = Utils.inputizeColor @attrs.color
-
-	oninput: (event) !->
+ColorInput = m.bind do
+	oninput: (event, vnode) !->
 		{value} = event.target
 		if event.target.type is \color
-			if color = Utils.extendColor @attrs.value
+			if color = Utils.extendColor vnode.attrs.value
 				alpha = color.slice -2
 				unless alpha is \ff
 					value = value.slice(0 7) + alpha
-		@attrs.oninput? value, event
+		vnode.attrs.oninput? value, event
 		if color = Utils.shortenColor value
-			@attrs.oncolor? color, event
+			vnode.attrs.oncolor? color, event
 
-	view: ->
+	view: (vnode) ->
 		m \.ColorInput,
-			class: @attrs.class
+			class: vnode.attrs.class
 			m \input.ColorInput-text,
 				minlength: 2
 				maxlength: 9
-				value: @attrs.value
-				oninput: @oninput
+				value: vnode.attrs.value
+				oninput: !~>
+					@oninput it, vnode
 			m \.ColorInput-color,
 				style:
-					background: @attrs.value
+					background: vnode.attrs.value
 				onclick: (event) !~>
 					event.target.nextElementSibling.click!
 			m \input.ColorInput-input,
 				type: \color
-				value: @color
-				oninput: @oninput
+				value: Utils.inputizeColor vnode.attrs.color
+				oninput: !~>
+					@oninput it, vnode
 
-App = m.comp do
+App = m.bind do
 	oninit: !->
-		@w = 48
-		@h = 32
-		@tmpW = @w
-		@tmpH = @h
-		@z = 12
 		@color = \#333
 		@tmpColor = @color
 		@gridColor = \#ccc
@@ -230,8 +136,6 @@ App = m.comp do
 		@tmpAlphaColor = @alphaColor
 		@sel = null
 		@selPts = []
-		@grid = null
-		@edit = null
 		@file = null
 		@pts = []
 		@code = void
@@ -245,12 +149,291 @@ App = m.comp do
 		@cursor = void
 		@hists = []
 		@histsIndex = 0
+		@pushHist!
+
+	resize: (w = @w, h = @h, z = @z) !->
+		w = Math.floor +w
+		h = Math.floor +h
+		z = Math.floor +z
+		if 1 <= w <= 1024 and 1 <= h <= 1024 and 2 <= z <= 16
+			unless w is @w and h is @h and z is @z
+				@w = w
+				@h = h
+				@z = z
+				@tmpW = @w
+				@tmpH = @h
+				@wz = @w * @z
+				@hz = @h * @z
+				@vw = viewEl.offsetWidth // @z
+				@vh = viewEl.offsetHeight // @z
+				@vw <?= @w
+				@vh <?= @h
+				@vwz = @vw * @z
+				@vhz = @vh * @z
+				canvas.width = @vwz
+				canvas.height = @vhz
+				@g = canvas.getContext \2d
+				@g.imageSmoothingEnabled = no
+				@redraw!
+				m.redraw!
 
 	oncreate: !->
-		@resize!
+		@resize 48 32 12
 		addEventListener \keydown @onkeydown
 		addEventListener \keyup @onkeyup
+		addEventListener \resize @onresize
 		addEventListener \contextmenu (.preventDefault!)
+
+	inBound: (x, y) ->
+		0 <= x < @w and 0 <= y < @h
+
+	mergeSelPts: !->
+		for pt in @selPts
+			if @inBound pt.0, pt.1
+				index = @pts.findIndex ~> it.0 is pt.0 and it.1 is pt.1 and it isnt pt
+				if index >= 0
+					pt.2 = Utils.mixColor @pts[index]2, pt.2
+					@pts.splice index, 1
+			else
+				@pts.splice @pts.indexOf(pt), 1
+
+	onpointerdownEdit: (event) !->
+		canvas.setPointerCapture event.pointerId
+		@mouse = event.which
+		if @mouse is 2
+			event.preventDefault!
+		@x = void
+		@y = void
+		@ctrl = event.ctrlKey
+		@shift = event.shiftKey
+		@alt = event.altKey
+		@onpointermoveEdit event, yes yes no
+
+	onpointermoveEdit: (event, isDown, isMove = yes, isUp) !->
+		event.redraw = no
+		mx = event.offsetX // @z
+		my = event.offsetY // @z
+		if mx isnt @x or my isnt @y or isDown or isUp
+			if @mouse
+				if isDown
+					@x = mx
+					@y = my
+				inBound = @inBound mx, my
+				if @shift
+					if isDown
+						if @selPts.length
+							@mergeSelPts!
+						@sel = x0: mx, y0: my
+						if @mouse is 2
+							@selPts = []
+					if isMove
+						@sel.x = mx
+						@sel.y = my
+						@sel.x1 = Math.min @sel.x0, mx
+						@sel.y1 = Math.min @sel.y0, my
+						@sel.x2 = Math.max @sel.x0, mx
+						@sel.y2 = Math.max @sel.y0, my
+						if @mouse in [1 2]
+							@sel.pts = @pts.filter ~>
+								@sel.x1 <= it.0 <= @sel.x2 and @sel.y1 <= it.1 <= @sel.y2
+						else
+							@sel.pts = null
+					else
+						if @sel.pts
+							for pt in @sel.pts
+								unless @selPts.includes pt
+									@selPts.push pt
+						else
+							@selPts .= filter ~>
+								it.0 < @sel.x1 or it.0 > @sel.x2 or it.1 < @sel.y1 or it.1 > @sel.y2
+						@sel = null
+						@pushHist!
+					@redraw!
+				else if @alt
+					unless @selPts.length
+						if isMove
+							if @mouse in [1 3]
+								grid = []
+								for pt in @pts
+									grid[][pt.1][pt.0] = pt
+							if @mouse is 1
+								if color = grid[my]?[mx]?2
+									unless color is @color
+										fill = (x, y) !~>
+											if @inBound x, y
+												if pt = grid[y]?[x]
+													if pt.2 is color
+														pt.2 = @color
+														fill x - 1, y
+														fill x + 1, y
+														fill x, y - 1
+														fill x, y + 1
+										fill mx, my
+								else
+									fill = (x, y) !~>
+										if @inBound x, y
+											unless pt = grid[][y][x]
+												newPt = [x, y, @color]
+												@pts.push newPt
+												grid[y][x] = newPt
+												fill x - 1, y
+												fill x + 1, y
+												fill x, y - 1
+												fill x, y + 1
+									fill mx, my
+								grid = null
+								@redraw!
+							else if @mouse is 3
+								if color = grid[my]?[mx]?2
+									fill = (x, y) !~>
+										if @inBound x, y
+											if pt = grid[y]?[x]
+												if pt.2 is color
+													@pts.splice @pts.indexOf(pt), 1
+													delete grid[y][x]
+													fill x - 1, y
+													fill x + 1, y
+													fill x, y - 1
+													fill x, y + 1
+									fill mx, my
+								grid = null
+								@redraw!
+				else
+					if @selPts.length
+						if @mouse is 2
+							if isDown
+								@cursor = \copy
+						if @mouse in [1 2]
+							if isMove
+								for pt in @selPts
+									if @mouse is 2
+										if isDown
+											if @inBound pt.0, pt.1
+												findPt = @pts.find ~> it.0 is pt.0 and it.1 is pt.1 and it isnt pt
+												if findPt
+													findPt.2 = Utils.mixColor findPt.2, pt.2
+												else
+													newPt = [...pt]
+													@pts.push newPt
+									pt.0 += mx - @x
+									pt.1 += my - @y
+								@redraw!
+							else
+								@pushHist!
+						else
+							inSelPts = @selPts.some ~> it.0 is mx and it.1 is my
+							if inSelPts
+								for pt in @selPts
+									@pts.splice @pts.indexOf(pt), 1
+								@selPts = []
+								@pushHist!
+							else
+								@mergeSelPts!
+								@selPts = []
+							@redraw!
+					else
+						if inBound
+							if @mouse is 1
+								if isMove
+									pt = @pts.find ~> it.0 is mx and it.1 is my
+									if pt
+										pt.2 = Utils.mixColor pt.2, @color
+									else
+										newPt = [mx, my, @color]
+										@pts.push newPt
+									@redraw!
+								else
+									@pushHist!
+							else if @mouse is 2
+								if isMove
+									pt = @pts.find ~> it.0 is mx and it.1 is my
+									if pt
+										@color = @tmpColor = pt.2
+							else
+								if isMove
+									pt = @pts.find ~> it.0 is mx and it.1 is my
+									if pt
+										@pts.splice @pts.indexOf(pt), 1
+										@redraw!
+								else
+									@pushHist!
+			@x = mx
+			@y = my
+			m.redraw!
+
+	onlostpointercaptureEdit: (event) !->
+		@onpointermoveEdit event, no no yes
+		@mouse = 0
+		unless @isKeyDown
+			@ctrl = void
+			@shift = void
+			@alt = void
+			@code = void
+			@cursor = void
+
+	onkeydown: (event) !->
+		unless event.repeat
+			unless event.target.matches "textarea,input:not([type]),input[type=text],input[type=number]"
+				unless @mouse
+					@ctrl = event.ctrlKey
+					@shift = event.shiftKey
+					@alt = event.altKey
+					{@code} = event
+					@isKeyDown = yes
+					@cursor = void
+					if not @ctrl and @shift and not @alt
+						@cursor = \crosshair
+					switch @code
+					| \KeyS
+						if @ctrl
+							event.preventDefault!
+							if @shift
+								@saveAs!
+							else
+								@save!
+					| \KeyO
+						if @ctrl
+							event.preventDefault!
+							@open!
+					| \KeyZ
+						if @ctrl
+							event.preventDefault!
+							if @shift
+								@redoHist!
+							else
+								@undoHist!
+					| \KeyY
+						if @ctrl
+							event.preventDefault!
+							@redoHist!
+					| \Escape
+						if @selPts.length
+							@mergeSelPts!
+							@selPts = []
+							@redraw!
+					m.redraw!
+
+	onkeyup: (event) !->
+		if event.key is \Alt
+			event.preventDefault!
+		unless @mouse
+			@ctrl = void
+			@shift = void
+			@alt = void
+			@code = void
+			@cursor = void
+			m.redraw!
+		@isKeyDown = no
+
+	onresize: (event) !->
+		@resize!
+
+	onchangeTileSize: (prop, event) !->
+		if value = +event.target.value
+			value = Math.floor value
+			if 1 < value < 9e9
+				@[prop] = value
+				@redraw!
 
 	open: !->
 		try
@@ -266,12 +449,14 @@ App = m.comp do
 				img = new Image
 				img.src = reader.result
 				img.onload = !~>
-					@w = img.width
-					@h = img.height
-					@resize!
-					@edit.clearRect 0 0 @w, @h
-					@edit.drawImage img, 0 0
-					data = @edit.getImageData 0 0 @w, @h .data
+					@resize img.width, img.height
+					el = document.createElement \canvas
+					el.width = @w
+					el.height = @h
+					g = el.getContext \2d
+					g.imageSmoothingEnabled = yes
+					g.drawImage img, 0 0
+					data = g.getImageData 0 0 @w, @h .data
 					@pts = []
 					for i til data.length by 4
 						if a = data[i + 3]
@@ -287,12 +472,21 @@ App = m.comp do
 							@pts.push pt
 					@sel = null
 					@selPts = []
-					@drawGrid!
+					@redraw!
+					m.redraw!
 			reader.readAsDataURL file
 
 	save: !->
 		if @file
-			data = editEl.toBlob (blob) !~>
+			el = document.createElement \canvas
+			el.width = @w
+			el.height = @h
+			g = el.getContext \2d
+			g.imageSmoothingEnabled = yes
+			for pt in @pts
+				g.fillStyle = pt.2
+				g.fillRect pt.0, pt.1, 1 1
+			el.toBlob (blob) !~>
 				writer = await @file.createWritable!
 				await writer.write blob
 				await writer.close!
@@ -307,225 +501,63 @@ App = m.comp do
 					accept:
 						"image/png": [\.png]
 					...
-			@save!
-
-	inBound: (x, y) ->
-		0 <= x < @w and 0 <= y < @h
-
-	mergeSelPts: !->
-		for pt in @selPts
-			if @inBound pt.0, pt.1
-				index = @pts.findIndex ~> it.0 is pt.0 and it.1 is pt.1 and it isnt pt
-				if index >= 0
-					pt.2 = Utils.mixColor @pts[index]2, pt.2
-					@pts.splice index, 1
-			else
-				@pts.splice @pts.indexOf(pt), 1
-
-	pushHist: (name, actions) !->
-		@hists.push {name, actions}
-		@histsIndex = @hists.length - 1
-		m.redraw!
-
-	onpointerdownEdit: (event) !->
-		editEl.setPointerCapture event.pointerId
-		@mouse = event.which
-		if @mouse is 2
-			event.preventDefault!
-		@x = void
-		@y = void
-		@onpointermoveEdit event, yes
-
-	onpointermoveEdit: (event, isDown) !->
-		mx = event.offsetX // @z
-		my = event.offsetY // @z
-		unless mx is @x and my is @y
-			if @mouse
-				if isDown
-					@x = mx
-					@y = my
-				inBound = @inBound mx, my
-				dx = mx - @x
-				dy = my - @y
-				if @shift
-					if @selPts.length
-						@mergeSelPts!
-					if isDown
-						@sel = x0: mx, y0: my
-						if @mouse is 2
-							@selPts = []
-					@sel.x = mx
-					@sel.y = my
-					@sel.x1 = Math.min @sel.x0, mx
-					@sel.y1 = Math.min @sel.y0, my
-					@sel.x2 = Math.max @sel.x0, mx
-					@sel.y2 = Math.max @sel.y0, my
-					if @mouse in [1 2]
-						@sel.pts = @pts.filter ~>
-							@sel.x1 <= it.0 <= @sel.x2 and @sel.y1 <= it.1 <= @sel.y2
-					else
-						@sel.pts = null
-					@drawGrid!
-				else
-					if @selPts.length
-						if @mouse is 2
-							if isDown
-								@cursor = \copy
-						if @mouse in [1 2]
-							for pt in @selPts
-								if @mouse is 2
-									if isDown
-										if @inBound pt.0, pt.1
-											findPt = @pts.find ~> it.0 is pt.0 and it.1 is pt.1 and it isnt pt
-											if findPt
-												findPt.2 = Utils.mixColor findPt.2, pt.2
-											else
-												newPt = [...pt]
-												@pts.push newPt
-								pt.0 += dx
-								pt.1 += dy
-							@drawEdit!
-							@drawGrid!
-						else
-							inSelPts = @selPts.some ~> it.0 is mx and it.1 is my
-							if inSelPts
-								for pt in @selPts
-									@pts.splice @pts.indexOf(pt), 1
-								@drawEdit!
-							else
-								@mergeSelPts!
-							@selPts = []
-							@drawGrid!
-					else
-						if inBound
-							pt = @pts.find ~> it.0 is mx and it.1 is my
-							if @mouse is 1
-								if pt
-									pt.2 = Utils.mixColor pt.2, @color
-								else
-									newPt = [mx, my, @color]
-									@pts.push newPt
-								@drawEdit!
-							else if @mouse is 2
-								if pt
-									@color = @tmpColor = pt.2
-							else
-								if pt
-									@pts.splice @pts.indexOf(pt), 1
-									@drawEdit!
-			@x = mx
-			@y = my
-
-	onlostpointercaptureEdit: (event) !->
-		@mouse = 0
-		unless @isKeyDown
-			@ctrl = void
-			@shift = void
-			@alt = void
-			@code = void
-			@cursor = void
-		if @sel
-			if @sel.pts
-				for pt in @sel.pts
-					unless @selPts.includes pt
-						index = @pts.indexOf pt
-						@selPts.push pt
-						@pts.splice index, 1
-						@pts.push pt
-			else
-				@selPts .= filter ~>
-					it.0 < @sel.x1 or it.0 > @sel.x2 or it.1 < @sel.y1 or it.1 > @sel.y2
-			@sel = null
-			@drawGrid!
-
-	onkeydown: (event) !->
-		unless event.repeat
-			unless event.target.matches "textarea,input:not([type]),input[type=text],input[type=number]"
-				unless @mouse
-					@ctrl = event.ctrlKey
-					@shift = event.shiftKey
-					@alt = event.altKey
-					{@code} = event
-					@isKeyDown = yes
-					if @shift
-						@cursor = \crosshair
-						m.redraw!
-					switch @code
-					| \KeyS
-						if @ctrl
-							event.preventDefault!
-							if @shift
-								@saveAs!
-							else
-								@save!
-					| \KeyO
-						if @ctrl
-							event.preventDefault!
-							@open!
-					| \Escape
-						if @selPts.length
-							@mergeSelPts!
-							@selPts = []
-							@drawGrid!
-
-	onkeyup: (event) !->
-		unless @mouse
-			@ctrl = void
-			@shift = void
-			@alt = void
-			@code = void
-			@cursor = void
+			await @save!
 			m.redraw!
-		@isKeyDown = no
 
-	onchangeSize: (prop, event) !->
-		if value = +event.target.value
-			value = Math.floor value
-			if 0 < value < 1024
-				@[prop] = value
-				@resize!
+	pushHist: !->
+		if @histsIndex
+			@hists.splice 0 @histsIndex
+			@histsIndex = 0
+		hist = JSON.stringify do
+			w: @w
+			h: @h
+			pts: @pts
+			selPts: @selPts.map ~> @pts.indexOf it
+		willPush = yes
+		if oldHist = @hists.0
+			if hist is oldHist
+				willPush = no
+		if willPush
+			@hists.unshift hist
+			if @hists.length > 100
+				@hists.pop!
 
-	onchangeTileSize: (prop, event) !->
-		if value = +event.target.value
-			value = Math.floor value
-			if 1 < value < 9e9
-				@[prop] = value
-				@drawGrid!
+	undoHist: !->
+		if @histsIndex < @hists.length - 1
+			hist = @hists[++@histsIndex]
+			@applyHist hist
 
-	resize: !->
-		@tmpW = @w
-		@tmpH = @h
-		@wz = @w * @z
-		@hz = @h * @z
-		@wz1 = @wz + 1
-		@hz1 = @hz + 1
-		editEl.width = @w
-		editEl.height = @h
-		@edit = editEl.getContext \2d
-		@edit.imageSmoothingEnabled = no
-		@drawEdit!
-		gridEl.width = @wz1
-		gridEl.height = @hz1
-		@grid = gridEl.getContext \2d
-		@grid.imageSmoothingEnabled = no
-		@drawGrid!
+	redoHist: !->
+		if @histsIndex > 0
+			hist = @hists[--@histsIndex]
+			@applyHist hist
 
-	drawGrid: !->
-		@grid.clearRect 0 0 @wz1, @hz1
-		@grid.fillStyle = @gridColor
+	applyHist: (hist) !->
+		hist = JSON.parse hist
+		{w, h, @pts, @selPts} = hist
+		@resize w, h
+		@selPts .= map (@pts.)
+		@redraw!
+
+	redraw: !->
+		@g.clearRect 0 0 @vwz, @vhz
+		for pt in @pts
+			@g.fillStyle = pt.2
+			@g.fillRect pt.0 * @z, pt.1 * @z, @z, @z
+		@g.fillStyle = @gridColor
 		if @isShowGrid
-			@grid.globalAlpha = 0.25
-			for x to @wz by @z
-				@grid.fillRect x, 0 1 @hz1
-			for y to @hz by @z
-				@grid.fillRect 0 y, @wz1, 1
+			@g.globalAlpha = 0.25
+			for x til @wz by @z
+				@g.fillRect x, 0 1 @hz + 1
+			for y til @hz by @z
+				@g.fillRect 0 y, @wz + 1, 1
 		if @isShowTile
-			@grid.globalAlpha = 0.5
-			for x to @wz by @z * @tileW
-				@grid.fillRect x, 0 1 @hz1
-			for y to @hz by @z * @tileH
-				@grid.fillRect 0 y, @wz1, 1
-		@grid.globalAlpha = 1
+			@g.globalAlpha = 0.5
+			for x til @wz by @z * @tileW
+				@g.fillRect x, 0 1 @hz + 1
+			for y til @hz by @z * @tileH
+				@g.fillRect 0 y, @wz + 1, 1
+		@g.globalAlpha = 1
 		pts = @selPts
 		if @sel
 			if @sel.pts
@@ -534,29 +566,22 @@ App = m.comp do
 				pts .= filter ~>
 					it.0 < @sel.x1 or it.0 > @sel.x2 or it.1 < @sel.y1 or it.1 > @sel.y2
 		if pts.length
-			@grid.save!
-			@grid.fillStyle = \#07d
+			@g.fillStyle = \#07d
 			for pt in pts
-				@grid.fillRect pt.0 * @z - 2, pt.1 * @z - 2, @z + 4, @z + 4
-			@grid.globalCompositeOperation = \destination-out
+				@g.fillRect pt.0 * @z - 2, pt.1 * @z - 2, @z + 4, @z + 4
 			for pt in pts
-				@grid.fillRect pt.0 * @z, pt.1 * @z, @z, @z
-			@grid.restore!
+				@g.clearRect pt.0 * @z, pt.1 * @z, @z, @z
+				@g.fillStyle = pt.2
+				@g.fillRect pt.0 * @z, pt.1 * @z, @z, @z
 		if @sel
-			@grid.strokeStyle = \#07d
-			@grid.lineWidth = 2
-			@grid.setLineDash [4 2]
-			@grid.strokeRect do
+			@g.strokeStyle = \#07d
+			@g.lineWidth = 2
+			@g.setLineDash [4 2]
+			@g.strokeRect do
 				@sel.x1 * @z - 1
 				@sel.y1 * @z - 1
 				(@sel.x2 - @sel.x1 + 1) * @z + 2
 				(@sel.y2 - @sel.y1 + 1) * @z + 2
-
-	drawEdit: !->
-		@edit.clearRect 0 0 @w, @h
-		for pt in @pts
-			@edit.fillStyle = pt.2
-			@edit.fillRect pt.0, pt.1, 1 1
 
 	view: ->
 		m \.main,
@@ -578,8 +603,7 @@ App = m.comp do
 							max: 16
 							value: @z
 							oninput: !~>
-								@z = +it.target.value
-								@resize!
+								@resize @w, @h, it.target.valueAsNumber
 						m \.col-1.text-right @z
 						m \.col-6 "Kích thước ảnh"
 						m \.col-6.row.gap-x-2,
@@ -590,7 +614,7 @@ App = m.comp do
 								oninput: !~>
 									@tmpW = it.target.value
 								onchange: !~>
-									@onchangeSize \w event
+									@resize it.target.valueAsNumber, @h
 							m \input.input.w-100,
 								type: \number
 								min: 1
@@ -598,7 +622,7 @@ App = m.comp do
 								oninput: !~>
 									@tmpH = it.target.value
 								onchange: !~>
-									@onchangeSize \h event
+									@resize @w, it.target.valueAsNumber
 						m \.col-6 "Kích thước lưới"
 						m \.col-6.row.gap-x-2,
 							m \input.input.w-100,
@@ -631,7 +655,7 @@ App = m.comp do
 							oninput: (@tmpGridColor) !~>
 							color: @gridColor
 							oncolor: (@gridColor) !~>
-								@drawGrid!
+								@redraw!
 						m \.col-6 "Nền trong suốt"
 						m ColorInput,
 							class: \col-6
@@ -645,7 +669,7 @@ App = m.comp do
 								checked: @isShowTile
 								oninput: !~>
 									@isShowTile = it.target.checked
-									@drawGrid!
+									@redraw!
 							m \.ml-3 "Hiện ô lưới"
 						m \label.col-6.row.middle,
 							m \input.checkInput,
@@ -653,16 +677,14 @@ App = m.comp do
 								checked: @isShowGrid
 								oninput: !~>
 									@isShowGrid = it.target.checked
-									@drawGrid!
+									@redraw!
 							m \.ml-3 "Hiện lưới"
-			m \.view,
-				m \canvas#editEl,
+			m \.view#viewEl,
+				m \canvas#canvas,
 					style:
 						background: @alphaColor
-						zoom: @z
 					onpointerdown: @onpointerdownEdit
 					onpointermove: @onpointermoveEdit
 					onlostpointercapture: @onlostpointercaptureEdit
-				m \canvas#gridEl
 
 m.mount document.body, App

@@ -247,16 +247,11 @@ for align in left center right justify
 	display flex
 .toolbar
 	padding 8px
-	width 300px
+	min-width 300px
+	max-width 300px
 .view
-	position relative
 	flex-grow 1
-	overflow auto
-#editEl
-#gridEl
-	position absolute
-	left 0
-	top 0
+	overflow hidden
+#canvas
+	display block
 	image-rendering pixelated
-#gridEl
-	pointer-events none
