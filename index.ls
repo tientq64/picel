@@ -164,8 +164,8 @@ App = m.bind do
 				@tmpH = @h
 				@wz = @w * @z
 				@hz = @h * @z
-				@vw = viewEl.offsetWidth // @z
-				@vh = viewEl.offsetHeight // @z
+				@vw = Math.floor viewEl.offsetWidth / @z
+				@vh = Math.floor viewEl.offsetHeight / @z
 				@vw <?= @w
 				@vh <?= @h
 				@vwz = @vw * @z
@@ -211,8 +211,8 @@ App = m.bind do
 
 	onpointermoveEdit: (event, isDown, isMove = yes, isUp) !->
 		event.redraw = no
-		mx = event.offsetX // @z
-		my = event.offsetY // @z
+		mx = Math.floor event.offsetX / @z
+		my = Math.floor event.offsetY / @z
 		if mx isnt @x or my isnt @y or isDown or isUp
 			if @mouse
 				if isDown
@@ -462,7 +462,7 @@ App = m.bind do
 						if a = data[i + 3]
 							j = i / 4
 							x = j % @w
-							y = j // @w
+							y = Math.floor j / @w
 							r = data[i]
 							g = data[i + 1]
 							b = data[i + 2]
