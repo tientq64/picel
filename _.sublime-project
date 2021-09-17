@@ -4,9 +4,8 @@
 		"file_exclude_patterns": [],
 		"folder_exclude_patterns": []
 	}],
-	"settings": {},
 	"build_systems": [{
 		"name": "Build",
-		"shell_cmd": "taskkill -f -im node.exe & live-server -q --host=localhost --no-browser"
+		"shell_cmd": "taskkill -f -im node.exe & live-server -q --no-browser --host=localhost --port=5500"
 	}]
 }

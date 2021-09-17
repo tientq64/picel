@@ -588,97 +588,122 @@ App = m.bind do
 			style:
 				cursor: @cursor
 			m \.toolbar.column,
-				m \.col,
-					m \.row,
-						m \.col-3 "x: #{@x ? \-}"
-						m \.col-3 "y: #{@y ? \-}"
-					m \button.button.w-100.mt-3,
-						onclick: @open
-						@file and @file.name or "Mở tập tin..."
-					m \.row.wrap.middle.mt-3.gap-y-3,
-						m \.col-6 "Thu phóng"
-						m \input.rangeInput.col-5,
-							type: \range
-							min: 2
-							max: 16
-							value: @z
+				m \.row.wrap,
+					m \.col-3,
+						"X: #{@x ? \-}"
+					m \.col-3,
+						"Y: #{@y ? \-}"
+					m \.col-6,
+						if @selPts.length
+							"Đang chọn #{@selPts.length} điểm"
+				m \button.button.w-100.mt-3,
+					onclick: @open
+					@file and @file.name or "Mở tập tin..."
+				m \.row.wrap.middle.mt-3.gap-y-3,
+					m \.col-6 "Thu phóng"
+					m \input.rangeInput.col-5,
+						type: \range
+						min: 2
+						max: 16
+						value: @z
+						oninput: !~>
+							@resize @w, @h, it.target.valueAsNumber
+					m \.col-1.text-right @z
+					m \.col-6 "Kích thước ảnh"
+					m \.col-6.row.gap-x-2,
+						m \input.input.w-100,
+							type: \number
+							min: 1
+							value: @tmpW
 							oninput: !~>
-								@resize @w, @h, it.target.valueAsNumber
-						m \.col-1.text-right @z
-						m \.col-6 "Kích thước ảnh"
-						m \.col-6.row.gap-x-2,
-							m \input.input.w-100,
-								type: \number
-								min: 1
-								value: @tmpW
-								oninput: !~>
-									@tmpW = it.target.value
-								onchange: !~>
-									@resize it.target.valueAsNumber, @h
-							m \input.input.w-100,
-								type: \number
-								min: 1
-								value: @tmpH
-								oninput: !~>
-									@tmpH = it.target.value
-								onchange: !~>
-									@resize @w, it.target.valueAsNumber
-						m \.col-6 "Kích thước lưới"
-						m \.col-6.row.gap-x-2,
-							m \input.input.w-100,
-								type: \number
-								min: 2
-								value: @tmpTileW
-								oninput: !~>
-									@tmpTileW = it.target.value
-								onchange: !~>
-									@onchangeTileSize \tileW event
-							m \input.input.w-100,
-								type: \number
-								min: 2
-								value: @tmpTileH
-								oninput: !~>
-									@tmpTileH = it.target.value
-								onchange: !~>
-									@onchangeTileSize \tileH event
-						m \.col-6 "Màu vẽ"
-						m ColorInput,
-							class: \col-6
-							value: @tmpColor
-							oninput: (@tmpColor) !~>
-							color: @color
-							oncolor: (@color) !~>
-						m \.col-6 "Màu lưới"
-						m ColorInput,
-							class: \col-6
-							value: @tmpGridColor
-							oninput: (@tmpGridColor) !~>
-							color: @gridColor
-							oncolor: (@gridColor) !~>
+								@tmpW = it.target.value
+							onchange: !~>
+								@resize it.target.valueAsNumber, @h
+						m \input.input.w-100,
+							type: \number
+							min: 1
+							value: @tmpH
+							oninput: !~>
+								@tmpH = it.target.value
+							onchange: !~>
+								@resize @w, it.target.valueAsNumber
+					m \.col-6 "Kích thước lưới"
+					m \.col-6.row.gap-x-2,
+						m \input.input.w-100,
+							type: \number
+							min: 2
+							value: @tmpTileW
+							oninput: !~>
+								@tmpTileW = it.target.value
+							onchange: !~>
+								@onchangeTileSize \tileW event
+						m \input.input.w-100,
+							type: \number
+							min: 2
+							value: @tmpTileH
+							oninput: !~>
+								@tmpTileH = it.target.value
+							onchange: !~>
+								@onchangeTileSize \tileH event
+					m \.col-6 "Màu vẽ"
+					m ColorInput,
+						class: \col-6
+						value: @tmpColor
+						oninput: (@tmpColor) !~>
+						color: @color
+						oncolor: (@color) !~>
+					m \.col-6 "Màu lưới"
+					m ColorInput,
+						class: \col-6
+						value: @tmpGridColor
+						oninput: (@tmpGridColor) !~>
+						color: @gridColor
+						oncolor: (@gridColor) !~>
+							@redraw!
+					m \.col-6 "Nền trong suốt"
+					m ColorInput,
+						class: \col-6
+						value: @tmpAlphaColor
+						oninput: (@tmpAlphaColor) !~>
+						color: @alphaColor
+						oncolor: (@alphaColor) !~>
+					m \label.col-6.row.middle,
+						m \input.checkInput,
+							type: \checkbox
+							checked: @isShowTile
+							oninput: !~>
+								@isShowTile = it.target.checked
 								@redraw!
-						m \.col-6 "Nền trong suốt"
-						m ColorInput,
-							class: \col-6
-							value: @tmpAlphaColor
-							oninput: (@tmpAlphaColor) !~>
-							color: @alphaColor
-							oncolor: (@alphaColor) !~>
-						m \label.col-6.row.middle,
-							m \input.checkInput,
-								type: \checkbox
-								checked: @isShowTile
-								oninput: !~>
-									@isShowTile = it.target.checked
-									@redraw!
-							m \.ml-3 "Hiện ô lưới"
-						m \label.col-6.row.middle,
-							m \input.checkInput,
-								type: \checkbox
-								checked: @isShowGrid
-								oninput: !~>
-									@isShowGrid = it.target.checked
-									@redraw!
-							m \.ml-3 "Hiện lưới"
+						m \.ml-3 "Hiện ô lưới"
+					m \label.col-6.row.middle,
+						m \input.checkInput,
+							type: \checkbox
+							checked: @isShowGrid
+							oninput: !~>
+								@isShowGrid = it.target.checked
+								@redraw!
+						m \.ml-3 "Hiện lưới"
+				m \b.mt-4.mb-3 "Hướng dẫn"
+				m \.col.scroll.text-pre-line.text-height-18,
+					"""
+						LM: Vẽ điểm
+						MM: Lấy màu điểm
+						RM: Xóa điểm
+						LM (chọn): Di chuyển hình chọn
+						MM (chọn): Nhân đôi hình chọn
+						RM (vào chọn): Xóa hình chọn
+						RM (ngoài chọn): Bỏ chọn
+						Alt + LM: Đổ màu
+						Alt + RM: Xóa đổ màu
+						Shift + LM: Thêm vùng chọn
+						Shift + MM: Chọn mới
+						Shift + RM (vào chọn): Xóa vùng chọn
+						Escape (chọn): Bỏ chọn
+						Ctrl + Z: Hoàn tác
+						Ctrl + Shift + Z: Làm lại
+						Ctrl + S: Lưu ảnh
+						Ctrl + O: Mở ảnh
+					"""
 			m \.view#viewEl,
 				m \canvas#canvas,
 					style:
