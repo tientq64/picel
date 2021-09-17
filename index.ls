@@ -298,6 +298,8 @@ App = m.bind do
 									fill mx, my
 								grid = null
 								@redraw!
+						else
+							@pushHist!
 				else
 					if @selPts.length
 						if @mouse is 2
